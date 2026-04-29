@@ -83,7 +83,7 @@ jobs:
 
       - name: Build ROM
         run: |
-          source ./buildenv.sh ${{ matrix.target }}
+          source ./buildenv.sh ${{ matrix.target }} --debloat default
           ./scripts/make_rom.sh --force
 
       - name: Check and Hash ROM
