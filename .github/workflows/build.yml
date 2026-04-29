@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [beyond0lte, beyond1lte, beyond2lte, beyondx, x1s, y2s, z3s, c1s, c2s, r8s, o1s, t2s, p3s, r9s, r0s, b0s, g0s]
+        target: [beyond2lte]
 
     steps:
       - name: Checkout repo
@@ -43,8 +43,9 @@ jobs:
             libzstd-dev linux-modules-extra-$(uname -r) lld protobuf-compiler webp \
             curl xxd patchelf flex bison libarchive-tools build-essential pcre2-utils
           sudo modprobe erofs f2fs
+          mkdir -p security
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.email "41898282+github-actions[bot]@://github.com"
           echo -n "${{ secrets.PLATFORM_KEY_PK8 }}" | base64 --decode > security/extremerom_platform.pk8
           echo -n "${{ secrets.PLATFORM_KEY_PEM }}" | base64 --decode > security/extremerom_platform.x509.pem
 
@@ -85,17 +86,22 @@ jobs:
           source ./buildenv.sh ${{ matrix.target }}
           ./scripts/make_rom.sh --force
 
-      - name: Upload to GoFile
+      - name: Check and Hash ROM
         run: |
           ZIP_FILE=$(find out -maxdepth 1 -type f -name "*.zip" | head -n 1)
-
-          RESPONSE=$(curl -s -F "file=@$ZIP_FILE" -F "token=${{ secrets.GOFILE_TOKEN }}" -F "folderId=${{ secrets.GOFILE_FOLDER_ID }}" "https://upload-eu-par.gofile.io/uploadFile")
-
-          echo "Uploaded successfully! Download link:"
-          echo "$RESPONSE" | jq -r '.data.downloadPage'
-
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No zip file found in out/ directory!"
+            exit 1
+          fi
+          echo "File found: $ZIP_FILE"
           echo "MD5:"
           md5sum "$ZIP_FILE"
-
           echo "SHA256:"
           sha256sum "$ZIP_FILE"
+
+      - name: Upload ROM to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: ExtremeROM-${{ matrix.target }}
+          path: out/*.zip
+          retention-days: 7
